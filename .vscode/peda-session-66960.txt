@@ -1,0 +1,6 @@
+break userNetworkManager.cpp:89
+break userNetworkManager.cpp:90
+break utils.cpp:34
+break utils.cpp:54
+
+set exec-wrapper logging enabled

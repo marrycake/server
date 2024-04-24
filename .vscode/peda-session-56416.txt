@@ -1,0 +1,7 @@
+break deviceCommander.cpp:14
+break main.cpp:42
+break netWorkManager.cpp:63
+break netWorkManager.cpp:72
+break netWorkManager.cpp:74
+
+set exec-wrapper logging enabled

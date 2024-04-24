@@ -1,0 +1,5 @@
+{
+  "cmake.configureSettings": {
+    "CODE_COVERAGE": true
+  }
+}

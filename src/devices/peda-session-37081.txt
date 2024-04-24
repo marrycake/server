@@ -1,0 +1,8 @@
+break handers.cpp:93
+break udpForwarder.cpp:14
+break udpForwarder.cpp:50
+break udpForwarder.cpp:52
+break udpForwarder.cpp:61
+break udpForwarder.cpp:70
+
+set exec-wrapper logging enabled
