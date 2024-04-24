@@ -1,0 +1,12 @@
+[submodule "third_partys/cpp-httplib"]
+	path = third_partys/cpp-httplib
+	url = https://github.com/yhirose/cpp-httplib.git
+[submodule "third_partys/SQLiteCpp"]
+	path = third_partys/SQLiteCpp
+	url = https://github.com/SRombauts/SQLiteCpp.git
+[submodule "third_partys/jsoncpp"]
+	path = third_partys/jsoncpp
+	url = https://github.com/open-source-parsers/jsoncpp.git
+[submodule "third_partys/json"]
+	path = third_partys/json
+	url = https://github.com/nlohmann/json.git
