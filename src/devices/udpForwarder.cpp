@@ -56,10 +56,6 @@ bool UdpForwarder::establish() {
       std::cout << "Received from " << inet_ntoa(clientAddr.sin_addr) << ":"
                 << ntohs(clientAddr.sin_port) << ":" << bytesReceived << " bits"
                 << '\n';
-
-      // 转发数据到目标地址
-      UserNetworkManager::getInstance()->writeToSockets(bindedDeviceId, buffer,
-                                                        65535);
     }
   });
   return true;

@@ -5,6 +5,7 @@
 #include "netWorkManagerController.h"
 #include "udpForwarderManager.h"
 #include "userManager.h"
+#include "userNetworkManager.h"
 #include "utils.h"
 #include <httplib.h>
 #include <iostream>
@@ -82,11 +83,12 @@ void commandForwarder(const httplib::Request &req, httplib::Response &res) {
     res.set_content(responseJson.dump(), "application/json");
     res.status = httplib::OK_200; // Unauthorized status code
   } else if (command == START_MONITOR_COMMAND) {
-    auto port = UdpForwarderManager::getInstance()
-                    ->registerUdpForwarder(stringToInt(deviceId))
-                    ->getUdpListenPort();
-    std::cout << "udp port: " << port << "\n";
-    command = command + ";" + std::to_string(port);
+    std::list<std::pair<std::string, uint16_t>> result;
+    UserNetworkManager::getInstance()->getAddrPorts(stringToInt(deviceId),
+                                                    result);
+    for (auto &item : result) {
+      command.append(";" + item.first + ":" + std::to_string(item.second));
+    }
     nManger->send(deviceId, command);
     successfulInfo("no response", res);
   } else if (command == STOP_MONITOR_COMMAND) {

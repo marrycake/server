@@ -4,14 +4,13 @@
 #include <atomic>
 #include <gsl/pointers>
 #include <list>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <netinet/in.h>
 #include <string>
 #include <thread>
-#include <unordered_map>
 #include <utility>
-
 class UserSocketWrapper;
 
 const int MAX_USER_NUM = 1000;
@@ -40,16 +39,15 @@ public:
   bool terminate();
 
   void deleteUserSocket(unsigned int bindedDeviceId, const std::string &userId);
-  void writeToSockets(unsigned int bindedDeviceId, char *buffer,
-                      unsigned int len);
+  bool getAddrPorts(unsigned bindedDeviceId,
+                    std::list<std::pair<std::string, uint16_t>> &result) const;
 
 private:
   static std::unique_ptr<UserNetworkManager> userNetworkManager;
   static std::mutex mutex;
 
-  std::unordered_map<
-      unsigned int,
-      std::unique_ptr<std::list<std::unique_ptr<UserSocketWrapper>>>>
+  std::map<unsigned int,
+           std::unique_ptr<std::map<std::string, struct sockaddr_in>>>
       recordMap;
 
   struct sockaddr_in serverConfig;

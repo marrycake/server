@@ -1,6 +1,7 @@
 #include "userNetworkManager.h"
 #include "userSocketWrapper.h"
 #include "utils.h"
+#include <arpa/inet.h>
 #include <cstring>
 #include <gsl/pointers>
 #include <iostream>
@@ -31,21 +32,19 @@ void UserNetworkManager::deleteUserSocket(unsigned int bindedDeviceId,
   if (iter == recordMap.end()) {
     return;
   }
-
-  for (auto &userSocketWrapper : *iter->second) {
-    if (userSocketWrapper->getUserId() == userId) {
-      //   userSocketWrapper->waitToThreadTerminate();
-      (*iter->second).remove(userSocketWrapper);
-      return;
-    }
+  auto *addrMap = iter->second.get();
+  auto userIter = addrMap->find(userId);
+  if (userIter == addrMap->end()) {
+    return;
   }
+  addrMap->erase(userIter);
 }
 
 bool UserNetworkManager::establish() {
   int connfd = 0;
   char buffer[4096];
   int n = 0;
-  listenfd = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+  listenfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
   if (listenfd == -1) {
     std::cout << "create socket error: " << strerror(errno)
               << "(errno: " << errno << ")" << '\n';
@@ -58,44 +57,40 @@ bool UserNetworkManager::establish() {
     return false;
   }
 
-  if (listen(listenfd, MAX_USER_NUM) == -1) {
-    std::cout << "listen socket error: " << strerror(errno)
-              << "(errno: " << errno << ")\n";
-    return false;
-  }
-
   isEstablished = true;
 
   listenThread = std::thread([&, this]() {
     std::cout << "user network thread start"
               << "\n";
+    struct sockaddr_in clientAddr;
+    socklen_t clientAddrLen = sizeof(clientAddr);
     while (isEstablished) {
-      connfd = accept(listenfd, (struct sockaddr *)nullptr, nullptr);
-      if (connfd == -1) {
-        printf("accept socket error: %s(errno: %d)", strerror(errno), errno);
-        continue;
+
+      auto bytesReceived =
+          recvfrom(listenfd, buffer, sizeof(buffer), 0,
+                   (struct sockaddr *)&clientAddr, &clientAddrLen);
+      if (bytesReceived < 0) {
+        return;
       }
-      n = recv(connfd, buffer, MAXLINE, 0);
-      buffer[n] = '\0';
+      buffer[bytesReceived] = '\0';
       auto userInfo = extraUserInfo(buffer);
-      auto item = recordMap.find(userInfo.deviceId);
-      if (item == recordMap.end()) {
-        auto userSocketList =
-            std::make_unique<std::list<std::unique_ptr<UserSocketWrapper>>>();
-        userSocketList->push_back(std::make_unique<UserSocketWrapper>(
-            connfd, userInfo.userId, userInfo.deviceId));
-        recordMap.insert({userInfo.deviceId, std::move(userSocketList)});
-
+      auto iter = recordMap.find(userInfo.deviceId);
+      if (iter == recordMap.end()) {
+        auto ipaddrMap =
+            std::make_unique<std::map<std::string, struct sockaddr_in>>();
+        ipaddrMap->insert(std::make_pair(userInfo.userId, clientAddr));
+        recordMap.insert(
+            std::make_pair(userInfo.deviceId, std::move(ipaddrMap)));
       } else {
-        item->second->push_back(std::make_unique<UserSocketWrapper>(
-            connfd, userInfo.userId, userInfo.deviceId));
+        iter->second->insert(std::make_pair(userInfo.userId, clientAddr));
       }
-
-      write(connfd, REGISTER_SUCCESSFUL.c_str(),
-            REGISTER_SUCCESSFUL.length() - 1);
+      std::string successInfo = "successful";
+      sendto(listenfd, successInfo.c_str(), successInfo.length(), 0,
+             (struct sockaddr *)&clientAddr, clientAddrLen);
+      std::cout << "Received from " << inet_ntoa(clientAddr.sin_addr) << ":"
+                << ntohs(clientAddr.sin_port) << ":" << std::string(buffer)
+                << '\n';
     }
-    std::cout << "user network thread end"
-              << "\n";
   });
 
   return true;
@@ -108,14 +103,17 @@ bool UserNetworkManager::terminate() {
   return true;
 }
 
-void UserNetworkManager::writeToSockets(unsigned int bindedDeviceId,
-                                        char *buffer, unsigned int len) {
+bool UserNetworkManager::getAddrPorts(
+    unsigned bindedDeviceId,
+    std::list<std::pair<std::string, uint16_t>> &result) const {
   auto iter = recordMap.find(bindedDeviceId);
   if (iter == recordMap.end()) {
-    return;
+    return false;
   }
 
-  for (auto &userSocketWrapper : *iter->second) {
-    userSocketWrapper->sendToClient(buffer, len);
+  for (auto [_, value] : *iter->second) {
+    result.emplace_back(inet_ntoa(value.sin_addr), ntohs(value.sin_port));
   }
+
+  return true;
 }
